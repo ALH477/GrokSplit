@@ -7,6 +7,13 @@ import json
 def estimate_tokens(text):
     return len(text) // 4 + 1
 
+def find_overlap(s1, s2, max_ov):
+    min_len = min(len(s1), len(s2), max_ov)
+    for k in range(min_len, 0, -1):
+        if s1[-k:] == s2[:k]:
+            return k
+    return 0
+
 def split_on_separator(text, separator, chunk_size, chunk_overlap, is_regex=False, length_function=len):
     if not separator:
         chunks = []
@@ -95,6 +102,11 @@ def main():
     chunks = recursive_split(content, separators, args.chunk_size, args.chunk_overlap, length_func)
     
     parts = []
+    prefix_overlaps = [0]  # First chunk has no prefix overlap
+    for i in range(1, len(chunks)):
+        actual_ov = find_overlap(chunks[i-1], chunks[i], args.chunk_overlap)
+        prefix_overlaps.append(actual_ov)
+    
     for i, chunk in enumerate(chunks, 1):
         part_file = f'part_{i}.txt'
         output_file = os.path.join(args.output_dir, part_file)
@@ -107,13 +119,14 @@ def main():
         "chunk_size": args.chunk_size,
         "chunk_overlap": args.chunk_overlap,
         "length_metric": args.length_metric,
+        "prefix_overlaps": prefix_overlaps,
         "parts": parts
     }
     manifest_path = os.path.join(args.output_dir, 'manifest.json')
     with open(manifest_path, 'w', encoding='utf-8') as f:
         json.dump(manifest, f, indent=4)
     
-    print(f"File split into {len(chunks)} parts in '{args.output_dir}' directory. Manifest saved as 'manifest.json'.")
+    print(f"File split into {len(chunks)} parts in '{args.output_dir}' directory. Manifest saved as 'manifest.json' with prefix overlaps for alignment.")
 
 if __name__ == "__main__":
     main()
