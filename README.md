@@ -12,7 +12,7 @@ A Python script to split large text files into smaller, logical chunks optimized
 ## Usage
 Run from the command line:
 ```bash
-python split_large_file.py input.txt --chunk_size 1000000 --chunk_overlap 20000 --length_metric tokens --output_dir parts
+python groksplit.py input.txt --chunk_size 1000000 --chunk_overlap 20000 --length_metric tokens --output_dir parts
 ```
 - `input.txt`: Path to your text file.
 - `--chunk_size`: Max size per chunk (default: 1M chars ~250k tokens).
