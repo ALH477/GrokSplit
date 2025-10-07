@@ -14,6 +14,9 @@ Run from the command line:
 ```bash
 python groksplit.py input.txt --chunk_size 1000000 --chunk_overlap 20000 --length_metric tokens --output_dir parts
 ```
+```bash
+python groksplit.py lib.rs --chunk_size 10000 --chunk_overlap 2000 --length_metric tokens --output_dir db
+```
 - `input.txt`: Path to your text file.
 - `--chunk_size`: Max size per chunk (default: 1M chars ~250k tokens).
 - `--chunk_overlap`: Overlap between chunks (default: 20k chars ~5k tokens).
