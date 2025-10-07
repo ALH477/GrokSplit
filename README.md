@@ -1,5 +1,5 @@
 # GrokSplit by DeMoD LLC
-
+![GrokSplit](groksplit.jpg)
 GrokSplit is a lightweight, dependency-free Python toolset for splitting large text files into smaller, semantically coherent chunks optimized for processing with Grok, xAI's AI assistant. It includes scripts to split files, process chunks with Grok via xAI’s API (preserving overlaps for perfect alignment), and merge them back into a single file. Designed for Grok’s token limits (~256k for Grok-4, up to 2M for Fast variants), GrokSplit is ideal for researchers, developers, and users of xAI’s free-tier or API services who need to edit or analyze large texts.
 
 ## Features
