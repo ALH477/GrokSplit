@@ -38,12 +38,12 @@ def find_overlap(s1, s2, max_ov):
     return 0
 
 def main():
-    parser = argparse.ArgumentParser(description="Process split chunks with Grok API and optionally merge modified outputs.")
+    parser = argparse.ArgumentParser(description="Process split chunks with Grok API and optionally merge modified outputs, preserving overlaps for alignment.")
     parser.add_argument("--input_dir", default="parts", help="Directory with split parts and manifest.json (default: 'parts').")
     parser.add_argument("--output_dir", default="processed_parts", help="Directory to save processed parts (default: 'processed_parts').")
     parser.add_argument("--api_key", required=True, help="xAI API key (required; get from https://docs.x.ai/docs/overview).")
     parser.add_argument("--model", default="grok-4", help="Grok model to use (default: grok-4).")
-    parser.add_argument("--prompt_template", default="Rewrite this text for clarity: {chunk}", help="Prompt template with {chunk} placeholder (default: 'Rewrite this text for clarity: {chunk}').")
+    parser.add_argument("--prompt_template", default="Rewrite this text for clarity: {core}", help="Prompt template with {core} placeholder (default: 'Rewrite this text for clarity: {core}').")
     parser.add_argument("--system_prompt", default="You are a helpful assistant.", help="System prompt for the LLM (default: 'You are a helpful assistant.').")
     parser.add_argument("--max_tokens", type=int, default=1000, help="Max tokens for response (default: 1000).")
     parser.add_argument("--temperature", type=float, default=0.7, help="Temperature for generation (default: 0.7).")
@@ -60,26 +60,43 @@ def main():
         manifest = json.load(f)
     
     parts = manifest.get("parts", [])
+    prefix_overlaps = manifest.get("prefix_overlaps", [])
+    if len(prefix_overlaps) != len(parts):
+        print("Warning: prefix_overlaps not found or mismatched; assuming no preservation.")
+        prefix_overlaps = [0] * len(parts)
     chunk_overlap = manifest.get("chunk_overlap", 0)
     original_name = manifest.get("original_file", "processed.txt")
     
     os.makedirs(args.output_dir, exist_ok=True)
     processed_parts = []
-    for i, part in enumerate(parts, 1):
+    for i, part in enumerate(parts, 0):  # 0-based
         part_path = os.path.join(args.input_dir, part)
         with open(part_path, "r", encoding="utf-8") as f:
             chunk = f.read()
         
-        user_prompt = args.prompt_template.format(chunk=chunk)
-        messages = [
-            {"role": "system", "content": args.system_prompt},
-            {"role": "user", "content": user_prompt}
-        ]
+        prefix_ov = prefix_overlaps[i]
+        suffix_ov = prefix_overlaps[i+1] if i + 1 < len(parts) else 0
         
-        print(f"Processing part {i}/{len(parts)}...")
-        modified = make_api_request(args.api_key, args.model, messages, args.max_tokens, args.temperature)
+        if prefix_ov + suffix_ov >= len(chunk):
+            print(f"Warning: Chunk {i+1} overlaps too large ({prefix_ov + suffix_ov} >= {len(chunk)}); skipping processing.")
+            modified = chunk
+        else:
+            prefix = chunk[:prefix_ov]
+            suffix = chunk[-suffix_ov:] if suffix_ov > 0 else ""
+            core = chunk[prefix_ov: -suffix_ov if suffix_ov > 0 else None]
+            
+            user_prompt = args.prompt_template.format(core=core)
+            messages = [
+                {"role": "system", "content": args.system_prompt},
+                {"role": "user", "content": user_prompt}
+            ]
+            
+            print(f"Processing core of part {i+1}/{len(parts)}...")
+            modified_core = make_api_request(args.api_key, args.model, messages, args.max_tokens, args.temperature)
+            
+            modified = prefix + modified_core + suffix
         
-        proc_part = f"processed_part_{i}.txt"
+        proc_part = f"processed_part_{i+1}.txt"
         proc_path = os.path.join(args.output_dir, proc_part)
         with open(proc_path, "w", encoding="utf-8") as f:
             f.write(modified)
@@ -91,7 +108,7 @@ def main():
     with open(proc_manifest_path, "w", encoding="utf-8") as f:
         json.dump(proc_manifest, f, indent=4)
     
-    print(f"Processed {len(parts)} parts into '{args.output_dir}'. Processed manifest saved.")
+    print(f"Processed {len(parts)} parts into '{args.output_dir}', preserving overlaps for alignment. Processed manifest saved.")
     
     if args.merge:
         merged = ""
@@ -103,14 +120,14 @@ def main():
                 merged += mod_chunk
             else:
                 actual_ov = find_overlap(merged, mod_chunk, chunk_overlap)
-                if actual_ov == 0 and chunk_overlap > 0:
-                    print(f"Warning: No overlap found for {proc_part}; appending fully.")
+                if actual_ov == 0 and prefix_overlaps[j] > 0:
+                    print(f"Warning: Expected overlap not found for {proc_part}; appending fully. Check modifications.")
                 merged += mod_chunk[actual_ov:]
         
         output_file = args.output_file or os.path.join(args.output_dir, f"processed_{original_name}")
         with open(output_file, "w", encoding="utf-8") as f:
             f.write(merged)
-        print(f"Merged file saved as '{output_file}'.")
+        print(f"Merged file saved as '{output_file}' with aligned overlaps.")
 
 if __name__ == "__main__":
     main()
