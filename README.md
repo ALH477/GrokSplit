@@ -74,7 +74,7 @@ python process_chunks.py --input_dir parts --output_dir processed --api_key YOUR
 ```
 Or, merge manually:
 ```bash
-python merge_parts.py --input_dir processed --output_file summarized_paper.txt
+python grokmerge.py --input_dir processed --output_file summarized_paper.txt
 ```
 
 ## License
